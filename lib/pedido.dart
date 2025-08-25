@@ -33,10 +33,25 @@ class Pedido {
   @override
   String toString() {
     String itensStr = "";
-    for (int i = 0; i < itens.length; i++) {
-      itensStr += "\n  ${i + 1}. ${itens[i].toString()}";
+    if (itens.isNotEmpty) {
+      itensStr = "\n║ ITENS:\n";
+      for (int i = 0; i < itens.length; i++) {
+        itensStr +=
+            "║ ${i + 1}. ${itens[i].nome} - Qtd: ${itens[i].quantidade} - R\$ ${itens[i].calcularSubtotal().toStringAsFixed(2)}\n";
+      }
+    } else {
+      itensStr = "\n║ ITENS: Nenhum item adicionado\n";
     }
 
-    return "PEDIDO ID: $id\nCliente: ${cliente.nome}\nData: ${data.day}/${data.month}/${data.year}\nStatus: $status\nItens:$itensStr\nTOTAL: R\$ ${calcularTotal().toStringAsFixed(2)}";
+    return '''
+╔══════════════════════════════════════╗
+║               PEDIDO                 ║
+╠══════════════════════════════════════╣
+║ ID: $id
+║ Cliente: ${cliente.nome}
+║ Data: ${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}
+║ Status: $status$itensStr║ 
+║ TOTAL: R\$ ${calcularTotal().toStringAsFixed(2)}
+╚══════════════════════════════════════╝''';
   }
 }

@@ -9,6 +9,15 @@ class Cliente {
 
   @override
   String toString() {
-    return "ID: $id | Nome: $nome | Email: $email | Telefone: $telefone | Endereco: $endereco";
+    return '''
+╔══════════════════════════════════════╗
+║               CLIENTE                ║
+╠══════════════════════════════════════╣
+║ ID: $id
+║ Nome: $nome
+║ Email: $email
+║ Telefone: $telefone
+║ Endereço: $endereco
+╚══════════════════════════════════════╝''';
   }
 }

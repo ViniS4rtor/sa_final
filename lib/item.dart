@@ -12,6 +12,15 @@ class Item {
 
   @override
   String toString() {
-    return "ID: $id | Nome: $nome | Preco: R\$ ${preco.toStringAsFixed(2)} | Qtd: $quantidade | Subtotal: R\$ ${calcularSubtotal().toStringAsFixed(2)}";
+    return '''
+╔══════════════════════════════════════╗
+║                ITEM                  ║
+╠══════════════════════════════════════╣
+║ ID: $id
+║ Nome: $nome
+║ Preço Unitário: R\$ ${preco.toStringAsFixed(2)}
+║ Quantidade: $quantidade
+║ Subtotal: R\$ ${calcularSubtotal().toStringAsFixed(2)}
+╚══════════════════════════════════════╝''';
   }
 }
