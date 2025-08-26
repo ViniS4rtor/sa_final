@@ -11,8 +11,8 @@ int proximoIdItem = 1;
 
 void main() {
   print("╔══════════════════════════════════════╗");
-  print("║        SISTEMA DE PEDIDOS            ║");
-  print("║         Bem-vindo!                   ║");
+  print("║         SISTEMA DE PEDIDOS           ║");
+  print("║             Bem-vindo!               ║");
   print("╚══════════════════════════════════════╝");
 
   while (true) {
