@@ -1,56 +1,63 @@
 import 'dart:io';
 import 'package:sa_final/cliente.dart';
 import 'package:sa_final/item.dart';
-import 'package:sa_final/pedido.dart';
+import 'package:sa_final/database.dart';
 
-List<Cliente> clientes = [];
-List<Pedido> pedidos = [];
-int proximoIdCliente = 1;
-int proximoIdPedido = 1;
-int proximoIdItem = 1;
-
-void main() {
+void main() async {
   print("╔══════════════════════════════════════╗");
   print("║         SISTEMA DE PEDIDOS           ║");
   print("║             Bem-vindo!               ║");
   print("╚══════════════════════════════════════╝");
 
-  while (true) {
-    mostrarMenu();
-    String? opcao = stdin.readLineSync();
+  // Conectar ao banco de dados
+  final conn = await Database.connect();
+  if (conn == null) {
+    print(
+      '❌ Não foi possível conectar ao banco de dados. Verifique as credenciais',
+    );
+    return;
+  }
 
-    switch (opcao) {
-      case '1':
-        cadastrarCliente();
-        break;
-      case '2':
-        listarClientes();
-        break;
-      case '3':
-        criarPedido();
-        break;
-      case '4':
-        adicionarItem();
-        break;
-      case '5':
-        listarPedidos();
-        break;
-      case '6':
-        finalizarPedido();
-        break;
-      case '0':
-        print("Saindo...");
-        return;
-      default:
-        print("Opcao invalida!");
+  try {
+    while (true) {
+      mostrarMenu();
+      String? opcao = stdin.readLineSync();
+
+      switch (opcao) {
+        case '1':
+          await cadastrarCliente();
+          break;
+        case '2':
+          await listarClientes();
+          break;
+        case '3':
+          await criarPedido();
+          break;
+        case '4':
+          await adicionarItem();
+          break;
+        case '5':
+          await listarPedidos();
+          break;
+        case '6':
+          await finalizarPedido();
+          break;
+        case '0':
+          print("Saindo...");
+          return;
+        default:
+          print("Opcao invalida!");
+      }
+      print("\nPressione ENTER para continuar...");
+      stdin.readLineSync();
     }
-    print("\nPressione ENTER para continuar...");
-    stdin.readLineSync();
+  } finally {
+    await Database.close();
   }
 }
 
 void mostrarMenu() {
-  print("\n" + "=" * 50);
+  print("\n${"=" * 50}");
   print("               MENU PRINCIPAL");
   print("=" * 50);
   print("1. 👤 Cadastrar Cliente");
@@ -64,7 +71,7 @@ void mostrarMenu() {
   print("Escolha uma opção: ");
 }
 
-void cadastrarCliente() {
+Future<void> cadastrarCliente() async {
   print("\n--- 👤 CADASTRO DE CLIENTE ---");
 
   print("Nome: ");
@@ -79,21 +86,22 @@ void cadastrarCliente() {
   print("Endereco: ");
   String? endereco = stdin.readLineSync() ?? "";
 
-  Cliente cliente = Cliente(
-    proximoIdCliente++,
-    nome,
-    email,
-    telefone,
-    endereco,
-  );
-  clientes.add(cliente);
+  Cliente cliente = Cliente(0, nome, email, telefone, endereco);
 
-  print("✅ Cliente cadastrado com sucesso!");
-  print(cliente.toString());
+  int? id = await Database.inserirCliente(cliente);
+  if (id != null) {
+    cliente.id = id;
+    print("✅ Cliente cadastrado com sucesso!");
+    print(cliente.toString());
+  } else {
+    print("❌ Erro ao cadastrar cliente!");
+  }
 }
 
-void listarClientes() {
+Future<void> listarClientes() async {
   print("\n--- 📋 LISTA DE CLIENTES ---");
+
+  List<Cliente> clientes = await Database.listarClientes();
 
   if (clientes.isEmpty) {
     print("❌ Nenhum cliente cadastrado.");
@@ -106,8 +114,10 @@ void listarClientes() {
   }
 }
 
-void criarPedido() {
+Future<void> criarPedido() async {
   print("\n--- 🛒 CRIAR PEDIDO ---");
+
+  List<Cliente> clientes = await Database.listarClientes();
 
   if (clientes.isEmpty) {
     print("❌ Nenhum cliente cadastrado! Cadastre um cliente primeiro.");
@@ -124,20 +134,17 @@ void criarPedido() {
   int? clienteId = int.tryParse(idStr ?? "");
 
   if (clienteId != null) {
-    Cliente? cliente;
-    for (Cliente c in clientes) {
-      if (c.id == clienteId) {
-        cliente = c;
-        break;
-      }
-    }
+    Cliente? cliente = await Database.buscarClientePorId(clienteId);
 
     if (cliente != null) {
-      Pedido pedido = Pedido(proximoIdPedido++, cliente, DateTime.now());
-      pedidos.add(pedido);
-
-      print("✅ Pedido criado com sucesso!");
-      print(pedido.toString());
+      int? pedidoId = await Database.inserirPedido(clienteId);
+      if (pedidoId != null) {
+        print("✅ Pedido criado com sucesso!");
+        print("📋 ID do Pedido: $pedidoId");
+        print("👤 Cliente: ${cliente.nome}");
+      } else {
+        print("❌ Erro ao criar pedido!");
+      }
     } else {
       print("❌ Cliente não encontrado!");
     }
@@ -146,21 +153,14 @@ void criarPedido() {
   }
 }
 
-void adicionarItem() {
+Future<void> adicionarItem() async {
   print("\n--- ➕ ADICIONAR ITEM ---");
 
-  if (pedidos.isEmpty) {
-    print("❌ Nenhum pedido criado!");
-    return;
-  }
-
   // Mostrar pedidos pendentes
-  List<Pedido> pedidosPendentes = [];
-  for (Pedido p in pedidos) {
-    if (p.status == "Pendente") {
-      pedidosPendentes.add(p);
-    }
-  }
+  List<Map<String, dynamic>> pedidos = await Database.listarPedidos();
+  List<Map<String, dynamic>> pedidosPendentes = pedidos
+      .where((p) => p['status'] == 'Pendente')
+      .toList();
 
   if (pedidosPendentes.isEmpty) {
     print("❌ Nenhum pedido pendente!");
@@ -168,75 +168,137 @@ void adicionarItem() {
   }
 
   print("Pedidos pendentes:");
-  for (Pedido pedido in pedidosPendentes) {
-    print("${pedido.id} - Cliente: ${pedido.cliente.nome}");
+  for (var pedido in pedidosPendentes) {
+    print("${pedido['id']} - Cliente: ${pedido['cliente_nome']}");
   }
 
   print("ID do pedido: ");
   String? idStr = stdin.readLineSync();
   int? pedidoId = int.tryParse(idStr ?? "");
 
-  if (pedidoId != null) {
-    Pedido? pedido;
-    for (Pedido p in pedidosPendentes) {
-      if (p.id == pedidoId) {
-        pedido = p;
-        break;
-      }
-    }
-
-    if (pedido != null) {
-      print("Nome do item: ");
-      String? nome = stdin.readLineSync() ?? "";
-
-      print("Preco: ");
-      String? precoStr = stdin.readLineSync();
-      double? preco = double.tryParse(precoStr ?? "");
-
-      print("Quantidade: ");
-      String? qtdStr = stdin.readLineSync();
-      int? quantidade = int.tryParse(qtdStr ?? "");
-
-      if (preco != null && quantidade != null) {
-        Item item = Item(proximoIdItem++, nome, preco, quantidade);
-        pedido.adicionarItem(item);
-
-        print("✅ Item adicionado com sucesso!");
-        print(item.toString());
-      } else {
-        print("❌ Dados inválidos!");
-      }
-    } else {
-      print("❌ Pedido não encontrado!");
-    }
-  } else {
+  if (pedidoId == null) {
     print("❌ ID inválido!");
+    return;
+  }
+
+  // Verificar se o pedido existe e está pendente
+  var pedidoSelecionado = pedidosPendentes
+      .where((p) => p['id'] == pedidoId)
+      .firstOrNull;
+  if (pedidoSelecionado == null) {
+    print("❌ Pedido não encontrado!");
+    return;
+  }
+
+  // Mostrar itens disponíveis
+  List<Item> itens = await Database.listarItens();
+  if (itens.isEmpty) {
+    print("❌ Nenhum item disponível no estoque!");
+    return;
+  }
+
+  print("\nItens disponíveis:");
+  for (Item item in itens) {
+    print(
+      "${item.id} - ${item.nome} - R\$ ${item.preco.toStringAsFixed(2)} (Estoque: ${item.quantidade})",
+    );
+  }
+
+  print("ID do item: ");
+  String? itemIdStr = stdin.readLineSync();
+  int? itemId = int.tryParse(itemIdStr ?? "");
+
+  if (itemId == null) {
+    print("❌ ID do item inválido!");
+    return;
+  }
+
+  Item? itemSelecionado = await Database.buscarItemPorId(itemId);
+  if (itemSelecionado == null) {
+    print("❌ Item não encontrado!");
+    return;
+  }
+
+  print("Quantidade: ");
+  String? qtdStr = stdin.readLineSync();
+  int? quantidade = int.tryParse(qtdStr ?? "");
+
+  if (quantidade == null || quantidade <= 0) {
+    print("❌ Quantidade inválida!");
+    return;
+  }
+
+  if (quantidade > itemSelecionado.quantidade) {
+    print(
+      "❌ Quantidade solicitada maior que o estoque disponível (${itemSelecionado.quantidade})!",
+    );
+    return;
+  }
+
+  bool sucesso = await Database.adicionarItemPedido(
+    pedidoId,
+    itemId,
+    quantidade,
+    itemSelecionado.preco,
+  );
+  if (sucesso) {
+    print("✅ Item adicionado com sucesso!");
+    print(
+      "📦 ${itemSelecionado.nome} - Qtd: $quantidade - Total: R\$ ${(quantidade * itemSelecionado.preco).toStringAsFixed(2)}",
+    );
+  } else {
+    print("❌ Erro ao adicionar item ao pedido!");
   }
 }
 
-void listarPedidos() {
+Future<void> listarPedidos() async {
   print("\n--- 📦 LISTA DE PEDIDOS ---");
+
+  List<Map<String, dynamic>> pedidos = await Database.listarPedidos();
 
   if (pedidos.isEmpty) {
     print("❌ Nenhum pedido criado.");
     return;
   }
 
-  for (Pedido pedido in pedidos) {
-    print(pedido.toString());
+  for (var pedido in pedidos) {
+    print("╔══════════════════════════════════════╗");
+    print("║               PEDIDO                 ║");
+    print("╠══════════════════════════════════════╣");
+    print("║ ID: ${pedido['id']}");
+    print("║ Cliente: ${pedido['cliente_nome']}");
+    print("║ Data: ${pedido['data_pedido']}");
+    print("║ Status: ${pedido['status']}");
+
+    // Buscar itens do pedido
+    List<Map<String, dynamic>> itens = await Database.listarItensPedido(
+      pedido['id'],
+    );
+    if (itens.isNotEmpty) {
+      print("║ ITENS:");
+      for (int i = 0; i < itens.length; i++) {
+        var item = itens[i];
+        print(
+          "║ ${i + 1}. ${item['item_nome']} - Qtd: ${item['quantidade']} - R\$ ${item['subtotal'].toStringAsFixed(2)}",
+        );
+      }
+    } else {
+      print("║ ITENS: Nenhum item adicionado");
+    }
+
+    print("║ TOTAL: R\$ ${pedido['total'].toStringAsFixed(2)}");
+    print("╚══════════════════════════════════════╝");
     print("---");
   }
 }
 
-void finalizarPedido() {
+Future<void> finalizarPedido() async {
   print("\n--- 🏁 FINALIZAR PEDIDO ---");
 
-  List<Pedido> pedidosPendentes = [];
-  for (Pedido p in pedidos) {
-    if (p.status == "Pendente") {
-      pedidosPendentes.add(p);
-    }
-  }
+  List<Map<String, dynamic>> pedidos = await Database.listarPedidos();
+  List<Map<String, dynamic>> pedidosPendentes = pedidos
+      .where((p) => p['status'] == 'Pendente')
+      .toList();
 
   if (pedidosPendentes.isEmpty) {
     print("❌ Nenhum pedido pendente!");
@@ -244,30 +306,40 @@ void finalizarPedido() {
   }
 
   print("📋 Pedidos pendentes:");
-  for (Pedido pedido in pedidosPendentes) {
+  for (var pedido in pedidosPendentes) {
     print(
-      "${pedido.id} - Cliente: ${pedido.cliente.nome} - Total: R\$ ${pedido.calcularTotal().toStringAsFixed(2)}",
+      "${pedido['id']} - Cliente: ${pedido['cliente_nome']} - Total: R\$ ${pedido['total'].toStringAsFixed(2)}",
     );
   }
 
-  stdout.write("💯 Digite o ID do pedido: ");
+  print("💯 Digite o ID do pedido: ");
   String? idStr = stdin.readLineSync();
   int? pedidoId = int.tryParse(idStr ?? "");
 
   if (pedidoId != null) {
-    Pedido? pedido;
-    for (Pedido p in pedidosPendentes) {
-      if (p.id == pedidoId) {
-        pedido = p;
-        break;
-      }
-    }
+    var pedidoSelecionado = pedidosPendentes
+        .where((p) => p['id'] == pedidoId)
+        .firstOrNull;
 
-    if (pedido != null) {
-      if (pedido.itens.isNotEmpty) {
-        pedido.finalizar();
-        print("✅ Pedido finalizado com sucesso!");
-        print(pedido.toString());
+    if (pedidoSelecionado != null) {
+      // Verificar se o pedido tem itens
+      List<Map<String, dynamic>> itens = await Database.listarItensPedido(
+        pedidoId,
+      );
+
+      if (itens.isNotEmpty) {
+        bool sucesso = await Database.finalizarPedido(pedidoId);
+        if (sucesso) {
+          print("✅ Pedido finalizado com sucesso!");
+          print(
+            "📋 Pedido ${pedidoSelecionado['id']} - Cliente: ${pedidoSelecionado['cliente_nome']}",
+          );
+          print(
+            "💰 Total: R\$ ${pedidoSelecionado['total'].toStringAsFixed(2)}",
+          );
+        } else {
+          print("❌ Erro ao finalizar pedido!");
+        }
       } else {
         print("❌ Não é possível finalizar um pedido sem itens!");
       }
