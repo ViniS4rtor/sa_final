@@ -5,8 +5,8 @@ import 'item.dart';
 // Configurações do banco de dados
 const String _dbHost = '127.0.0.1';
 const int _dbPort = 3306;
-const String _dbUser = 'root'; // Ajuste conforme sua configuração
-const String _dbPassword = 'sua_senha'; // Ajuste conforme sua configuração
+const String _dbUser = '';
+const String _dbPassword = '';
 const String _dbDatabase = 'sistema_pedidos';
 
 class Database {
@@ -116,7 +116,11 @@ class Database {
       for (var linha in resultado.rows) {
         final id = linha.typedColByName<int>('id')!;
         final nome = linha.typedColByName<String>('nome')!;
-        final preco = linha.typedColByName<double>('preco')!;
+
+        // Converter DECIMAL para double através de String
+        final precoStr = linha.typedColByName<String>('preco') ?? '0.00';
+        final preco = double.tryParse(precoStr) ?? 0.0;
+
         final quantidade = linha.typedColByName<int>('quantidade_estoque')!;
 
         itens.add(Item(id, nome, preco, quantidade));
@@ -138,7 +142,11 @@ class Database {
       if (resultado.rows.isNotEmpty) {
         var linha = resultado.rows.first;
         final nome = linha.typedColByName<String>('nome')!;
-        final preco = linha.typedColByName<double>('preco')!;
+
+        // Converter DECIMAL para double através de String
+        final precoStr = linha.typedColByName<String>('preco') ?? '0.00';
+        final preco = double.tryParse(precoStr) ?? 0.0;
+
         final quantidade = linha.typedColByName<int>('quantidade_estoque')!;
 
         return Item(id, nome, preco, quantidade);
@@ -218,13 +226,17 @@ class Database {
 
       List<Map<String, dynamic>> pedidos = [];
       for (var linha in resultado.rows) {
+        // Converter DECIMAL para double através de String
+        final totalStr = linha.typedColByName<String>('total') ?? '0.00';
+        final total = double.tryParse(totalStr) ?? 0.0;
+
         pedidos.add({
           'id': linha.typedColByName<int>('id'),
           'cliente_id': linha.typedColByName<int>('cliente_id'),
           'cliente_nome': linha.typedColByName<String>('cliente_nome'),
           'data_pedido': linha.typedColByName<String>('data_pedido'),
           'status': linha.typedColByName<String>('status'),
-          'total': linha.typedColByName<double>('total'),
+          'total': total,
         });
       }
       return pedidos;
@@ -257,13 +269,21 @@ class Database {
 
       List<Map<String, dynamic>> itens = [];
       for (var linha in resultado.rows) {
+        // Converter DECIMAL para double através de String
+        final precoUnitarioStr =
+            linha.typedColByName<String>('preco_unitario') ?? '0.00';
+        final precoUnitario = double.tryParse(precoUnitarioStr) ?? 0.0;
+
+        final subtotalStr = linha.typedColByName<String>('subtotal') ?? '0.00';
+        final subtotal = double.tryParse(subtotalStr) ?? 0.0;
+
         itens.add({
           'id': linha.typedColByName<int>('id'),
           'item_id': linha.typedColByName<int>('item_id'),
           'item_nome': linha.typedColByName<String>('item_nome'),
           'quantidade': linha.typedColByName<int>('quantidade'),
-          'preco_unitario': linha.typedColByName<double>('preco_unitario'),
-          'subtotal': linha.typedColByName<double>('subtotal'),
+          'preco_unitario': precoUnitario,
+          'subtotal': subtotal,
         });
       }
       return itens;
